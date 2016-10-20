@@ -1,0 +1,6 @@
+[submodule "data-api"]
+	path = api
+	url = https://github.com/nopressurelabs/data-api.git
+[submodule "data-web"]
+	path = web
+	url = https://github.com/nopressurelabs/data-web.git

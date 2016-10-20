@@ -1,0 +1,92 @@
+# Add elastic search, logstash and kibana
+
+# service configuration for Redis
+redis:
+  image: redis:latest
+  hostname: redis1
+  ports:
+    - "6379:6379"
+
+# service configuration for Postgres
+db:
+  # use the preferred version of the official Postgres image
+  # see https://hub.docker.com/_/postgres/
+  build: .
+  dockerfile: containers/Dockerfile-postgres
+  hostname: db1
+  # persist the database between containers by storing it in a volume
+  volumes:
+    - api-postgres:/var/lib/postgresql/data
+    - ./dump:/dump
+
+# service configuration for our dockerized Rails app
+app:
+  # use the Dockerfile next to this file
+  build: .
+  # sources environment variable configuration for our architecture
+  env_file: .env
+  # rely on the RAILS_ENV value of the host machine
+  volumes:
+    - ./scripts:/scripts
+    - ./api:/api
+    - ./api/tmp:/tmp
+    - ./config:/config
+  # makes the app container aware of the DB container
+  links:
+    - db
+    - redis
+  # expose the port we configured Puma to bind to (should expose only internally)
+  ports:
+    - "3000:3000"
+  command: bash -c "/scripts/startup.sh"
+
+worker:
+  build: .
+  volumes_from:
+    - app
+  # sources environment variable configuration for our architecture
+  env_file: .env
+  command: bash -c "/scripts/sidekiq.sh"
+  links:
+    - db
+    - redis
+
+# service configuration for dockerized Ember app
+ui:
+  # set the build context to the root of the Rails app
+  build: .
+  # build with a different Dockerfile
+  dockerfile: containers/Dockerfile-ember
+  # makes the web container aware of the app container
+  links:
+    - app
+  volumes_from:
+    - app
+  # sources environment variable configuration for our architecture
+  env_file: .env
+  volumes:
+    - ./web:/web
+  # expose the port we configured Nginx to bind to (it is ok to expose externally)
+  ports:
+    - '4200:4200'
+    - '49152:49152'
+  command: bash -c "/scripts/startup-ui.sh"
+
+# service configuration for our web server
+web:
+  # set the build context to the root of the Rails app
+  build: .
+  # build with a different Dockerfile
+  dockerfile: containers/Dockerfile-nginx
+  # sources environment variable configuration for our architecture
+  env_file: .env
+  # makes the web container aware of the app container
+  links:
+    - app
+    - ui
+  volumes_from:
+    - app
+    - ui
+  # expose the port we configured Nginx to bind to (it is ok to expose externally)
+  ports:
+    - '80:80'

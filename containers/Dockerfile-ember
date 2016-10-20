@@ -1,0 +1,15 @@
+FROM node:latest
+MAINTAINER Silvia Puglisi <silvia@nopressure.go.uk>
+
+ENV WEBROOT web
+
+# Clone GitHub Repository
+RUN git clone -b master http://github.com/nopressurelabs/data-web.git /$WEBROOT
+WORKDIR /$WEBROOT
+
+COPY . /$WEBROOT
+WORKDIR /$WEBROOT
+
+RUN npm install -g phantomjs bower ember-cli ;\
+    bower --allow-root install;\
+		npm install
